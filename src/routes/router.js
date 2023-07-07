@@ -5,7 +5,7 @@ const passport = require('passport');
 const session = require('express-session');
 
 const User = require('../models/user.mongo');
-const { createUser, initPassport } = require('./controller');
+const { checkIfLoggedIn, checkIfNotLoggedIn, createUser, initPassport } = require('./controller');
 
 const router = express.Router();
 
@@ -21,38 +21,36 @@ router.use(session({
 }));
 router.use(passport.session());
 
-router.get('/', (req, res) => {
-    res.render('../src/views/home.ejs');
+router.get('/', checkIfLoggedIn, (req, res) => {
+    res.render('../src/views/home.ejs', { name: req.user.name });
 });
 
-router.get('/signup', (req, res) => {
+router.get('/signup', checkIfNotLoggedIn, (req, res) => {
     res.render('../src/views/signup.ejs');
 });
 
-router.get('/login', (req, res) => {
+router.get('/login', checkIfNotLoggedIn, (req, res) => {
     res.render('../src/views/login.ejs');
 });
 
 router.post('/signup', async (req, res) => {
-    hashedPassword = await bcrypt.hash(req.body.password, 10);
-    User.findOne({ email: req.body.email }).exec()
-        .then(result => {
-            if (result === null) {
-                try {
-                    createUser(req.body.username, req.body.email, hashedPassword);
-                    console.log(`User { ${user.id}, ${user.name}, ${user.email} } successfully created.`);
-                    res.redirect('/login');
-                }
-                catch (err) {
-                    res.redirect('/signup');
-                    console.log(err);
-                }
-            }
-            else {
-                console.log('User already exists.');
-                res.redirect('/signup');
-            }
-        });
+    const hashedPassword = await bcrypt.hash(req.body.password, 10);
+    const registered = await User.findOne({ email: req.body.email }).exec();
+    if (registered === null) {
+        try {
+            await createUser(req.body.username, req.body.email, hashedPassword);
+            res.redirect('/login');
+        }
+        catch (err) {
+            res.redirect('/signup');
+            console.log(err);
+        }
+    }
+    else {
+        console.log('User already exists.');
+        req.flash('error', 'User already exists.');
+        res.redirect('/signup');
+    }
 });
 
 router.post('/login', passport.authenticate('local', {
@@ -60,5 +58,12 @@ router.post('/login', passport.authenticate('local', {
     failureRedirect: '/login',
     failureFlash: true,
 }));
+
+router.post('/logout', function(req, res, next){
+    req.logout(function(err) {
+      if (err) { return next(err); }
+      res.redirect('/');
+    });
+});
 
 module.exports = router;

@@ -1,1 +1,14 @@
-Hello!
+<!DOCTYPE html>
+<html>
+  
+<body style="text-align: center">
+    <h1 style="color: green"> You've successfully logged in! </h1>
+    <h3> 
+        Welcome <%= name %>! 
+    </h3>
+    <form action="/logout" method="POST">
+        <div>
+            <button type="submit">Log Out</button>
+        </div>
+</body>
+</html>
